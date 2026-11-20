@@ -1,4 +1,4 @@
-# Split-Bill — Shared Expense Tracker
+# ChipIn — Shared Expense Tracker
 
 A lightweight, mobile-friendly web app for hostel and trip groups.
 Track shared mess bills, Wi-Fi, groceries and trip expenses, see who owes
@@ -71,7 +71,7 @@ service-worker registration is skipped there by design.
 
 ## Sharing updates with others — and the honest limit
 
-**There is no live sync in this version.** Split-Bill stores data
+**There is no live sync in this version.** ChipIn stores data
 only on the device in `localStorage`. A change made on one phone
 does not appear automatically on another person's phone.
 
@@ -80,7 +80,7 @@ can follow. To share updates:
 
 1. In Activity, use **Export group data (JSON)** — send that file
    to the others (WhatsApp, email, etc.).
-2. They open Split-Bill, go to Activity → **Import group data**,
+2. They open ChipIn, go to Activity → **Import group data**,
    and load the file. They then see the same expenses, balances,
    payments and the full activity log, newest first.
 3. For a quick update without the file, use **Copy activity
@@ -109,11 +109,11 @@ No setup is needed in the app. Each member's UPI ID is entered in
 Members (e.g. `name@okhdfcbank`). The settle link is built as:
 
 ```
-upi://pay?pa=<upi-id>&pn=<payee-name>&am=<amount>&cu=INR&tn=Split-Bill%3A+<group>
+upi://pay?pa=<upi-id>&pn=<payee-name>&am=<amount>&cu=INR&tn=ChipIn%3A+<group>
 ```
 
 Tapping it opens the user's UPI app (GPay / PhonePe / Paytm, etc.)
-with the payee and amount filled in. Split-Bill never moves money
+with the payee and amount filled in. ChipIn never moves money
 itself and never sees bank details.
 
 ## Project structure

@@ -1,6 +1,6 @@
 'use strict';
 
-/* Split-Bill — shared expense tracker.
+/* ChipIn — shared expense tracker.
    Data is stored only on this device, in localStorage under STORAGE_KEY.
    No account, no server, no demo data loaded by default.
    Honest limit: there is NO live sync across phones in this version.
@@ -112,7 +112,7 @@ function buildUpiLink(upiId, payeeName, amount, note) {
   return 'upi://pay?pa=' + enc(String(upiId).trim()) +
     '&pn=' + enc(payeeName || '') +
     '&am=' + enc(Number(amount).toFixed(2)) +
-    '&cu=INR&tn=' + enc(note || 'Split-Bill settlement');
+    '&cu=INR&tn=' + enc(note || 'ChipIn settlement');
 }
 
 function logActivity(group, actor, text, atISO) {
@@ -140,7 +140,7 @@ function recordPayment(group, fromId, toId, amount, actor, atISO) {
 }
 
 function activitySummaryText(group) {
-  var lines = ['Split-Bill — ' + group.name + ' — Activity'];
+  var lines = ['ChipIn — ' + group.name + ' — Activity'];
   lines.push('Updated: ' + new Date().toLocaleString('en-IN'));
   lines.push('');
   var items = (group.activity || []).slice().sort(function (a, b) { return String(b.at).localeCompare(String(a.at)); });
@@ -221,7 +221,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     a.click();
     setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
   }
-  function safeFilename(name) { return String(name || 'split-bill').replace(/[^a-z0-9]+/gi, '-').toLowerCase(); }
+  function safeFilename(name) { return String(name || 'chipin').replace(/[^a-z0-9]+/gi, '-').toLowerCase(); }
 
   function openCategoryModal(category) {
     var g = activeGroup(); if (!g) return;
@@ -342,7 +342,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     var settlements = simplifySettlements(balances);
     $('settlementList').innerHTML = settlements.length ? settlements.map(function (s, idx) {
       var upi = memberUpi(group, s.toId);
-      var link = buildUpiLink(upi, s.toName, s.amount, 'Split-Bill: ' + group.name);
+      var link = buildUpiLink(upi, s.toName, s.amount, 'ChipIn: ' + group.name);
       var payHtml;
       if (link) {
         payHtml = '<a class="btn btn-primary" href="' + escapeHtml(link) + '">Pay via UPI — ' + formatINR(s.amount) + '</a> ' +
@@ -634,7 +634,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     // Share group data with other parties (JSON export / import)
     $('exportGroupBtn').addEventListener('click', function () {
       var g = activeGroup(); if (!g) return;
-      downloadFile(safeFilename(g.name) + '-split-bill.json', JSON.stringify(g, null, 2), 'application/json');
+      downloadFile(safeFilename(g.name) + '-chipin.json', JSON.stringify(g, null, 2), 'application/json');
       toast('Group file exported — send it to others and they can import it to see the same activity.');
     });
     $('importGroupBtn').addEventListener('click', function () { $('importGroupFile').click(); });
@@ -646,7 +646,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
         try {
           var imported = JSON.parse(String(reader.result));
           if (!imported || typeof imported.name !== 'string' || !Array.isArray(imported.members) || !Array.isArray(imported.expenses)) {
-            throw new Error('Not a Split-Bill group file');
+            throw new Error('Not a ChipIn group file');
           }
           ensureGroupShape(imported);
           var existing = state.groups.find(function (x) { return x.id === imported.id; });
@@ -662,7 +662,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
           saveState(); render();
           toast('Group imported: ' + imported.name);
         } catch (err) {
-          toast('Could not import that file — it is not a Split-Bill group file.');
+          toast('Could not import that file — it is not a ChipIn group file.');
         }
         e.target.value = '';
       };

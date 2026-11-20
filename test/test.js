@@ -54,8 +54,8 @@ eq(b2.find(x => x.name === 'Rohan').share, 0, 'Rohan share 0 when not in split')
 eq(b2.find(x => x.name === 'Meera').share, 150, 'Meera share 150 on partial split');
 
 // UPI link
-const link = SB.buildUpiLink('aarav@okhdfcbank', 'Aarav', 400, 'Split-Bill: Hostel');
-assert(link === 'upi://pay?pa=aarav%40okhdfcbank&pn=Aarav&am=400.00&cu=INR&tn=Split-Bill%3A%20Hostel', 'UPI link exact: ' + link);
+const link = SB.buildUpiLink('aarav@okhdfcbank', 'Aarav', 400, 'ChipIn: Hostel');
+assert(link === 'upi://pay?pa=aarav%40okhdfcbank&pn=Aarav&am=400.00&cu=INR&tn=ChipIn%3A%20Hostel', 'UPI link exact: ' + link);
 assert(SB.buildUpiLink('', 'Rohan', 100) === null, 'Missing UPI ID returns null, no broken link');
 assert(SB.buildUpiLink(null, 'Rohan', 100) === null, 'Null UPI ID returns null');
 

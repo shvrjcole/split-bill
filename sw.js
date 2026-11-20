@@ -1,4 +1,4 @@
-/* Split-Bill service worker — offline cache, best-effort. */
+/* ChipIn service worker — offline cache, best-effort. */
 var CACHE = 'splitbill-v1';
 var ASSETS = ['./', 'index.html', 'css/styles.css', 'js/app.js', 'manifest.webmanifest', 'icons/icon-192.svg', 'icons/icon-512.svg'];
 self.addEventListener('install', function (e) {
