@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="description" content="Split-Bill — a lightweight shared expense tracker for hostel and trip groups. Track mess, Wi-Fi, groceries and trip bills, and settle with one UPI link.">
+  <title>Split-Bill — Shared Expense Tracker</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/svg+xml" href="icons/icon-192.svg">
+  <link rel="apple-touch-icon" href="icons/icon-192.svg">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">₹</span>
+      <div>
+        <h1>Split-Bill</h1>
+        <p>Shared expenses, settled simply.</p>
+      </div>
+    </div>
+    <span class="free-badge">Core free</span>
+  </header>
+
+  <main class="container">
+    <!-- Group bar -->
+    <section class="card group-bar" aria-label="Group">
+      <div class="group-bar-row">
+        <label for="groupSelect">Group</label>
+        <select id="groupSelect" aria-label="Active group"></select>
+        <button id="newGroupBtn" class="btn btn-secondary" type="button">+ New group</button>
+      </div>
+      <div id="groupMeta" class="muted small"></div>
+      <div id="groupActions" class="row">
+        <button id="renameGroupBtn" class="btn btn-ghost" type="button">Rename</button>
+        <button id="deleteGroupBtn" class="btn btn-ghost danger" type="button">Delete group</button>
+      </div>
+    </section>
+
+    <!-- Empty state / onboarding -->
+    <section id="emptyState" class="card empty-state" hidden>
+      <h2>Start your first group</h2>
+      <p>No group yet. It takes less than a minute:</p>
+      <ol>
+        <li><strong>1.</strong> Create a group — e.g. “Hostel — Room 4” or “Goa Trip”.</li>
+        <li><strong>2.</strong> Add members, with their UPI ID if they want to be paid by UPI.</li>
+        <li><strong>3.</strong> Add an expense — mess, Wi-Fi, groceries or a trip bill.</li>
+      </ol>
+      <p class="muted">Split-Bill works out who owes whom, and gives a one-tap UPI link to settle it.</p>
+      <div class="row">
+        <button id="emptyNewGroupBtn" class="btn btn-primary" type="button">Create a group</button>
+        <button id="loadDemoBtn" class="btn btn-secondary" type="button">Load demo group</button>
+      </div>
+      <p class="muted small">Demo is optional — you can delete it any time. No demo data is loaded by default.</p>
+    </section>
+
+    <div id="appMain" hidden>
+      <!-- Who is updating? Stored per group, used to attribute activity. -->
+      <section class="card you-are-bar" aria-label="You are">
+        <label for="currentUserSelect">You are:</label>
+        <select id="currentUserSelect" aria-label="Who is updating this group"></select>
+        <p class="muted small">Choose your name so other people can see who added or changed a record. This is saved with the group.</p>
+      </section>
+
+      <!-- Tabs -->
+      <nav class="tabs" aria-label="Sections">
+        <button class="tab active" data-tab="dashboard" type="button">Dashboard</button>
+        <button class="tab" data-tab="expenses" type="button">Expenses</button>
+        <button class="tab" data-tab="settle" type="button">Settle up</button>
+        <button class="tab" data-tab="members" type="button">Members</button>
+        <button class="tab" data-tab="activity" type="button">Activity</button>
+      </nav>
+
+      <!-- Dashboard -->
+      <section id="tab-dashboard" class="tab-panel">
+        <div class="stats">
+          <div class="stat card"><span class="stat-label">Total spent</span><strong id="totalSpent">₹0</strong></div>
+          <div class="stat card"><span class="stat-label">Expenses</span><strong id="expenseCount">0</strong></div>
+          <div class="stat card"><span class="stat-label">Members</span><strong id="memberCount">0</strong></div>
+        </div>
+
+        <div class="card">
+          <h2>Balances</h2>
+          <p class="muted small">Paid − your share. Positive means the group owes them; negative means they owe the group.</p>
+          <ul id="balanceList" class="balance-list"></ul>
+        </div>
+
+        <div class="card">
+          <h2>Spending by category</h2>
+          <p class="muted small">Tap a category to see the names — who paid and what each person's share was in that category.</p>
+          <ul id="categoryList" class="category-list"></ul>
+        </div>
+      </section>
+
+      <!-- Expenses -->
+      <section id="tab-expenses" class="tab-panel" hidden>
+        <div class="card">
+          <h2 id="expenseFormTitle">Add expense</h2>
+          <form id="expenseForm">
+            <input type="hidden" id="expenseId">
+            <label>What was it for?
+              <input id="expenseDesc" type="text" placeholder="e.g. Mess bill — November" required maxlength="80">
+            </label>
+            <div class="form-row">
+              <label>Amount (₹)
+                <input id="expenseAmount" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="900" required>
+              </label>
+              <label>Category
+                <select id="expenseCategory">
+                  <option>Mess</option>
+                  <option>Wi-Fi</option>
+                  <option>Groceries</option>
+                  <option>Trip</option>
+                  <option>Other</option>
+                </select>
+              </label>
+            </div>
+            <div class="form-row">
+              <label>Paid by
+                <select id="expensePaidBy"></select>
+              </label>
+              <label>Date
+                <input id="expenseDate" type="date" required>
+              </label>
+            </div>
+            <fieldset>
+              <legend>Split equally among</legend>
+              <div id="splitWithList" class="checkbox-list"></div>
+              <p class="muted small">Untick anyone who should not share this bill.</p>
+            </fieldset>
+            <div class="row">
+              <button class="btn btn-primary" type="submit">Save expense</button>
+              <button id="cancelEditExpenseBtn" class="btn btn-ghost" type="button" hidden>Cancel edit</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="card">
+          <div class="row space-between">
+            <h2>All expenses</h2>
+            <div class="row">
+              <button id="exportCsvBtn" class="btn btn-secondary" type="button">Export CSV</button>
+              <button id="printBtn" class="btn btn-secondary" type="button">Print / PDF</button>
+            </div>
+          </div>
+          <div class="row">
+            <label for="expenseFilter" style="margin-bottom:0">Filter by category</label>
+            <select id="expenseFilter" style="flex:1; min-width:160px"></select>
+          </div>
+          <p id="expenseFilterInfo" class="muted small" style="margin-top:8px"></p>
+          <ul id="expenseList" class="expense-list"></ul>
+        </div>
+      </section>
+
+      <!-- Settle -->
+      <section id="tab-settle" class="tab-panel" hidden>
+        <div class="card">
+          <h2>Settle up</h2>
+          <p class="muted">The fewest payments needed to settle everyone. Tap <strong>Pay via UPI</strong> to open your UPI app with the amount filled in, or <strong>Mark as paid</strong> after paying — that is recorded in the Activity log too.</p>
+          <ul id="settlementList" class="settlement-list"></ul>
+        </div>
+        <div class="card">
+          <h2>Payments marked as paid</h2>
+          <ul id="paidList" class="balance-list"></ul>
+        </div>
+        <div class="card pro-card">
+          <h2>Split-Bill Pro — one-time upgrade</h2>
+          <p><strong>₹99 once.</strong> PDF expense reports and receipt scanning.</p>
+          <ul>
+            <li>Download a formatted PDF report for a group or a month</li>
+            <li>Scan a receipt to pre-fill an expense</li>
+          </ul>
+          <p class="muted small">Pro is coming soon. The core tracker — groups, expenses, balances and UPI settle — stays free.</p>
+          <button id="proBtn" class="btn btn-primary" type="button">Upgrade to Pro — ₹99 once</button>
+          <p class="muted small">Free export is still available: use Export CSV and Print / PDF in Expenses.</p>
+        </div>
+      </section>
+
+      <!-- Members -->
+      <section id="tab-members" class="tab-panel" hidden>
+        <div class="card">
+          <h2>Add member</h2>
+          <form id="memberForm">
+            <div class="form-row">
+              <label>Name
+                <input id="memberName" type="text" placeholder="e.g. Aarav" required maxlength="40">
+              </label>
+              <label>UPI ID <span class="muted">(optional)</span>
+                <input id="memberUpi" type="text" placeholder="name@okhdfcbank" maxlength="60" autocomplete="off">
+              </label>
+            </div>
+            <p class="muted small">UPI ID is only used to build the payment link when someone owes this person. It stays on this device.</p>
+            <button class="btn btn-primary" type="submit">Add member</button>
+          </form>
+        </div>
+        <div class="card">
+          <h2>Members</h2>
+          <ul id="memberList" class="member-list"></ul>
+        </div>
+      </section>
+
+      <!-- Activity -->
+      <section id="tab-activity" class="tab-panel" hidden>
+        <div class="card">
+          <h2>Activity — who changed what</h2>
+          <p class="muted small">Every change is listed newest first, with the person's name and the time. This is how other people can track updates to a record. First choose your name in “You are” above — if you don't, updates will say “Someone”.</p>
+          <p class="muted small"><strong>No live sync in this version:</strong> Split-Bill stores data only on this device, so changes do not appear automatically on another person's phone. To share updates, export the group file below (or copy / WhatsApp the activity summary) and send it to the others — they import the file and see the same activity log.</p>
+          <div class="row">
+            <button id="copyActivityBtn" class="btn btn-secondary" type="button">Copy activity summary</button>
+            <button id="whatsappActivityBtn" class="btn btn-secondary" type="button">Share on WhatsApp</button>
+            <button id="exportActivityCsvBtn" class="btn btn-secondary" type="button">Export activity CSV</button>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Share this group with others</h2>
+          <p class="muted small">Export the whole group as a file, send it to the others, and they use Import to load it — expenses, balances, payments and the full activity log come with it.</p>
+          <div class="row">
+            <button id="exportGroupBtn" class="btn btn-primary" type="button">Export group data (JSON)</button>
+            <button id="importGroupBtn" class="btn btn-secondary" type="button">Import group data</button>
+            <input id="importGroupFile" type="file" accept=".json,application/json" hidden>
+          </div>
+        </div>
+        <div class="card">
+          <h2>All updates</h2>
+          <ul id="activityList" class="activity-list"></ul>
+        </div>
+      </section>
+    </div>
+
+    <p class="footer-note muted small">Split-Bill stores your groups on this device (localStorage). No account needed. No live sync yet — share updates with Export group data or the Activity share buttons. UPI links open your UPI app — Split-Bill never moves money itself.</p>
+  </main>
+
+  <!-- Category popup -->
+  <div id="categoryModal" class="modal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="categoryModalTitle">
+      <div class="row space-between">
+        <h2 id="categoryModalTitle">Category</h2>
+        <button id="categoryModalClose" class="btn btn-ghost" type="button" aria-label="Close">✕ Close</button>
+      </div>
+      <div id="categoryModalBody"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
