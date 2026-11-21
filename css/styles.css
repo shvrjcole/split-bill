@@ -12,6 +12,11 @@
   --radius: 14px;
 }
 * { box-sizing: border-box; }
+/* .btn (and other rules) set display explicitly, which overrides the
+   browser's default hiding of [hidden] elements — e.g. the "Cancel edit"
+   button showed even when it was not in edit mode. Force hidden to win. */
+[hidden] { display: none !important; }
+html { scroll-padding-top: 72px; } /* keep focused fields clear of the sticky tab bar */
 body {
   margin: 0;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;

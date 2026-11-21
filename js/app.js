@@ -247,6 +247,9 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   function render() {
     var group = activeGroup();
     var select = $('groupSelect');
+    // No groups yet → the dropdown is empty, so disable it instead of
+    // showing a broken-looking empty select.
+    select.disabled = state.groups.length === 0;
     select.innerHTML = '';
     state.groups.forEach(function (g) {
       var opt = document.createElement('option');
@@ -295,13 +298,27 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
         '<strong>' + formatINR(byCat[c]) + '</strong></button></li>';
     }).join('') : '<li class="muted">No expenses yet.</li>';
 
-    // Expense form options
+    // Expense form options — preserve the in-progress choices across
+    // renders. render() used to rebuild the Paid-by select and the split
+    // checkboxes from scratch, silently wiping the selected payer and
+    // re-ticking members the user had unticked (e.g. changing "You are"
+    // re-renders and would have saved the wrong split).
     var paidBy = $('expensePaidBy');
+    var prevPaidBy = paidBy.value;
+    var prevSplit = {};
+    var hadSplitBoxes = false;
+    document.querySelectorAll('#splitWithList input').forEach(function (c) {
+      prevSplit[c.value] = c.checked;
+      hadSplitBoxes = true;
+    });
     paidBy.innerHTML = group.members.map(function (m) {
-      return '<option value="' + m.id + '">' + escapeHtml(m.name) + '</option>';
+      return '<option value="' + m.id + '"' + (m.id === prevPaidBy ? ' selected' : '') + '>' + escapeHtml(m.name) + '</option>';
     }).join('');
     $('splitWithList').innerHTML = group.members.map(function (m) {
-      return '<label><input type="checkbox" value="' + m.id + '" checked> ' + escapeHtml(m.name) + '</label>';
+      // A member the user unticked stays unticked; a brand-new member
+      // defaults to ticked; with no previous boxes (first render) all ticked.
+      var checked = !hadSplitBoxes || prevSplit[m.id] !== false;
+      return '<label><input type="checkbox" value="' + m.id + '"' + (checked ? ' checked' : '') + '> ' + escapeHtml(m.name) + '</label>';
     }).join('') || '<span class="muted">Add members first.</span>';
 
     // Expense filter + involved names
@@ -549,14 +566,19 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
         var oldName = m.name; var oldUpi = m.upi;
         var name = (window.prompt('Member name', m.name) || '').trim();
         if (!name) return;
+        if (g.members.some(function (x) { return x.id !== m.id && x.name.toLowerCase() === name.toLowerCase(); })) {
+          toast('That name is already used by another member in this group.');
+          return;
+        }
         var upi = (window.prompt('UPI ID for ' + name + ' (optional — leave blank to remove)', m.upi || '') || '').trim();
         m.name = name; m.upi = upi;
         log(g, 'Edited member ' + oldName + ' → ' + name + (upi !== oldUpi ? ' (UPI updated)' : ''));
         saveState(); render(); toast('Member updated.');
       }
       if (t.dataset.delMember) {
-        var used = g.expenses.some(function (x) { return x.paidBy === t.dataset.delMember || (x.splitWith || []).indexOf(t.dataset.delMember) !== -1; });
-        if (used) { toast('Cannot delete — this member is in one or more expenses. Delete those expenses first.'); return; }
+        var used = g.expenses.some(function (x) { return x.paidBy === t.dataset.delMember || (x.splitWith || []).indexOf(t.dataset.delMember) !== -1; }) ||
+          (g.payments || []).some(function (p) { return p.fromId === t.dataset.delMember || p.toId === t.dataset.delMember; });
+        if (used) { toast('Cannot delete — this member is in one or more expenses or recorded payments.'); return; }
         if (!window.confirm('Delete this member?')) return;
         var dm = g.members.find(function (x) { return x.id === t.dataset.delMember; });
         g.members = g.members.filter(function (x) { return x.id !== t.dataset.delMember; });
