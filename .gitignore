@@ -3,3 +3,5 @@ node_modules/
 *.log
 dist/
 build/
+# Real Firebase web config — never commit; copy firebase-config.example.js
+js/firebase-config.js

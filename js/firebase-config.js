@@ -24,10 +24,10 @@
  * client-side code. */
 
 window.CHIPIN_FIREBASE_CONFIG = {
-  apiKey: 'AIzaSyDqMciFrqICUj_j0g4wHg8UtZ_XuIBVXh4',
-  authDomain: 'chipin-99cad.firebaseapp.com',
-  projectId: 'chipin-99cad',
-  storageBucket: 'chipin-99cad.firebasestorage.app',
-  messagingSenderId: '796553803466',
-  appId: '1:796553803466:web:b2df626bb7189b63ffa633'
+  apiKey: 'YOUR_API_KEY',
+  authDomain: 'YOUR_PROJECT_ID.firebaseapp.com',
+  projectId: 'YOUR_PROJECT_ID',
+  storageBucket: 'YOUR_PROJECT_ID.firebasestorage.app',
+  messagingSenderId: 'YOUR_MESSAGING_SENDER_ID',
+  appId: 'YOUR_APP_ID'
 };
