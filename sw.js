@@ -1,6 +1,6 @@
 /* ChipIn service worker — offline cache, best-effort. */
 var CACHE = 'splitbill-v1';
-var ASSETS = ['./', 'index.html', 'css/styles.css', 'js/app.js', 'manifest.webmanifest', 'icons/icon-192.svg', 'icons/icon-512.svg'];
+var ASSETS = ['./', 'index.html', 'css/styles.css', 'js/app.js', 'js/firebase-config.js', 'js/live-sync.js', 'manifest.webmanifest', 'icons/icon-192.svg', 'icons/icon-512.svg'];
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(ASSETS); }).catch(function () {}));
 });

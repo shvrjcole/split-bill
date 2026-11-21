@@ -205,7 +205,7 @@
         <div class="card">
           <h2>Activity — who changed what</h2>
           <p class="muted small">Every change is listed newest first, with the person's name and the time. This is how other people can track updates to a record. First choose your name in “You are” above — if you don't, updates will say “Someone”.</p>
-          <p class="muted small"><strong>No live sync in this version:</strong> ChipIn stores data only on this device, so changes do not appear automatically on another person's phone. To share updates, export the group file below (or copy / WhatsApp the activity summary) and send it to the others — they import the file and see the same activity log.</p>
+          <p id="liveSyncNote" class="muted small"><strong>Offline mode — live sync not set up yet:</strong> ChipIn stores data only on this device, so changes do not appear automatically on another person's phone. To share updates, export the group file below (or copy / WhatsApp the activity summary) and send it to the others — they import the file and see the same activity log. Live sync can be switched on per group once Firebase is set up — see the Live sync card below and the README.</p>
           <div class="row">
             <button id="copyActivityBtn" class="btn btn-secondary" type="button">Copy activity summary</button>
             <button id="whatsappActivityBtn" class="btn btn-secondary" type="button">Share on WhatsApp</button>
@@ -221,6 +221,26 @@
             <input id="importGroupFile" type="file" accept=".json,application/json" hidden>
           </div>
         </div>
+        <div class="card" id="liveSyncCard">
+          <h2>Live sync — see each other's updates</h2>
+          <p id="liveSyncStatus" class="muted small">Offline mode — live sync not set up yet.</p>
+          <div id="liveSyncControls" hidden>
+            <div class="row">
+              <button id="goLiveBtn" class="btn btn-primary" type="button">Go live with this group</button>
+              <button id="stopLiveBtn" class="btn btn-ghost danger" type="button" hidden>Stop live sync</button>
+            </div>
+            <p id="liveCodeRow" class="small" hidden>Live code — share this with the group:
+              <strong class="live-code" id="liveCodeDisplay"></strong>
+              <button id="copyLiveCodeBtn" class="btn btn-secondary" type="button">Copy code</button>
+            </p>
+            <label>Join a live group — enter its 6-letter code
+              <input id="joinLiveCodeInput" type="text" placeholder="e.g. K7Q2XA" maxlength="6" autocomplete="off" style="text-transform:uppercase">
+            </label>
+            <div class="row"><button id="joinLiveBtn" class="btn btn-secondary" type="button">Join live group</button></div>
+            <p class="muted small">No account needed — joining is anonymous. Anyone with the code can read and change that group, so only share it with people in the group.</p>
+          </div>
+          <p id="liveSyncSetupHint" class="muted small">To switch live sync on, the app owner adds the Firebase web config in <code>js/firebase-config.js</code> (free Spark plan) and sets the Firestore rules in the README. Until then, offline mode above is all there is — and everything still works.</p>
+        </div>
         <div class="card">
           <h2>All updates</h2>
           <ul id="activityList" class="activity-list"></ul>
@@ -228,7 +248,7 @@
       </section>
     </div>
 
-    <p class="footer-note muted small">ChipIn stores your groups on this device (localStorage). No account needed. No live sync yet — share updates with Export group data or the Activity share buttons. UPI links open your UPI app — ChipIn never moves money itself.</p>
+    <p class="footer-note muted small">ChipIn stores your groups on this device (localStorage). No account needed. Live sync is off by default — it needs the free Firebase setup in the README; until then, share updates with Export group data or the Activity share buttons. UPI links open your UPI app — ChipIn never moves money itself.</p>
   </main>
 
   <!-- Category popup -->
@@ -245,5 +265,11 @@
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
   <script src="js/app.js"></script>
+  <!-- Optional live sync (Firebase). js/firebase-config.js holds only
+       placeholder values until the owner fills in a real project —
+       until then js/live-sync.js does nothing and the app stays
+       fully offline. -->
+  <script src="js/firebase-config.js"></script>
+  <script src="js/live-sync.js"></script>
 </body>
 </html>

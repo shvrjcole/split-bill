@@ -71,9 +71,9 @@ service-worker registration is skipped there by design.
 
 ## Sharing updates with others — and the honest limit
 
-**There is no live sync in this version.** ChipIn stores data
-only on the device in `localStorage`. A change made on one phone
-does not appear automatically on another person's phone.
+**By default there is no live sync.** ChipIn stores data only on
+the device in `localStorage`. A change made on one phone does not
+appear automatically on another person's phone.
 
 That is why the Activity tab exists: it is the record other people
 can follow. To share updates:
@@ -87,9 +87,130 @@ can follow. To share updates:
    summary** or **Share on WhatsApp** in Activity, or
    **Export activity CSV**.
 
-Live sync across phones would need a server / account system and
-is not in this version — the app says this in the Activity tab too,
-so no one expects updates to appear by themselves.
+Live sync across phones is available as an opt-in — see
+“Live sync (optional — Firebase)” below. It is off by default and
+the app says so in the Activity tab, so no one expects updates to
+appear by themselves until the group owner switches it on.
+
+## Live sync (optional — Firebase, free tier)
+
+Live sync is prepared in the code (`js/live-sync.js`, config in
+`js/firebase-config.js`) but **off until a Firebase project is
+set up**. With no config, the app behaves exactly as before.
+
+### How it works
+
+- Anonymous sign-in — no account, no name or email collected.
+- One Firestore document per live group: collection
+  `chipin-groups`, document id = the 6-character group code
+  (e.g. `chipin-groups/K7Q2XA`). The document is
+  `{ code, rev, updatedAt, updatedBy, updatedByName, group }`,
+  where `group` is the whole ChipIn group object.
+- In Activity → **Live sync**, tap **Go live with this group**.
+  The current group is uploaded and the code is shown. Other
+  members open ChipIn, enter the code, and join — no account.
+- A live `onSnapshot` listener then pushes every change (expense
+  added, payment marked as paid, member added) to all open
+  clients, so dashboards and balances update immediately.
+- Every local save of a live group is pushed to Firestore
+  (debounced 600 ms). **Conflict rule: last write wins, on the
+  whole group document.** Two people saving the same group at
+  the exact same moment can overwrite each other; the later save
+  wins. There is no per-field merge.
+- A Firestore document is at most 1 MiB — a ChipIn group (activity
+  capped at 200 entries) fits easily.
+
+### Setup (owner only, once)
+
+1. Go to console.firebase.google.com and create a project.
+   Choose the **Spark plan — free, no card required**.
+2. Build → Authentication → Sign-in method → enable **Anonymous**.
+3. Build → Firestore Database → Create database → **production
+   mode**, pick the nearest region (e.g. `asia-south1` for India).
+4. In Firestore → Rules, paste the rules below and Publish.
+5. Project Settings → Your apps → Web app (`</>`) → register the
+   app and copy the config values into `js/firebase-config.js`,
+   replacing the `YOUR_*` placeholders. These values are the
+   **public** web config — they are not secrets.
+6. Deploy this folder to a static host (e.g. GitHub Pages) and
+   open it over `https://` — Firebase Auth does not work on
+   `file://`.
+7. In the app, open a group → Activity → Live sync → **Go live
+   with this group**, and share the 6-letter code with the group.
+
+### Config values still needed from the Firebase project
+
+All six, from Project Settings → Your apps → Web app:
+
+- `apiKey`, `authDomain`, `projectId`, `storageBucket`,
+  `messagingSenderId`, `appId`
+
+### Firestore rules — paste exactly, then Publish
+
+```text
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ChipIn live groups. The 6-character group code IS the doc id.
+    // Anyone who knows the code can read/write that one group —
+    // like an unlisted link. No listing, no other collections.
+    match /chipin-groups/{code} {
+      allow get: if request.auth != null && code.size() == 6;
+      allow create, update: if request.auth != null
+        && code.size() == 6
+        && request.resource.data.code == code
+        && request.resource.data.keys().hasAll(
+             ['code', 'rev', 'updatedAt', 'updatedBy', 'group'])
+        && request.resource.data.group is map
+        && request.resource.data.group.name is string
+        && request.resource.data.group.members is list
+        && request.resource.data.group.expenses is list;
+      allow delete: if false;
+      allow list: if false;
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+```
+
+### Security — read this before enabling
+
+- **The code is the only gate.** These rules cannot check
+  "knows the code" as a password — the doc id *is* the code, so
+  anyone who knows (or guesses) a group's 6-letter code can read
+  and change that group. The rules stop anyone *listing* groups
+  or touching any other collection, and they check the document
+  shape, but they do not make the code a secret. Share it only
+  with people in the group, like a password.
+- To rotate a code: in Activity → Live sync, tap **Stop live
+  sync**, then **Go live** again — a new code is generated and
+  the old document is left orphaned (it holds the old snapshot;
+  delete it from the Firebase console if that bothers you).
+- Do not put sensitive personal data in a group (bank details,
+  passwords, full addresses). Names, UPI IDs and expenses are
+  all the app needs.
+- Never add service-account keys or Admin SDK credentials to
+  this repo — they must never be in client-side code.
+
+### Cost
+
+Spark (free) tier, no card: Firestore gives 50,000 document
+reads, 20,000 writes and 20,000 deletes per day, plus 1 GiB of
+stored data — far more than a few hostel/trip groups use.
+(Quotas are Google's published Spark limits; check them in the
+Firebase console — they can change.) Nothing is charged unless
+you deliberately upgrade to the Blaze pay-as-you-go plan. If the
+free daily quota is ever hit, sync pauses until the next day —
+it does not start charging.
+
+### When live sync is NOT set up
+
+Everything still works offline: localStorage groups, join code,
+export/import, UPI links. The Activity tab shows
+“Offline mode — live sync not set up yet” and the Firebase SDK
+is never even downloaded.
 
 ## How to build an APK (Android)
 
@@ -122,6 +243,10 @@ itself and never sees bank details.
 index.html            Entry point, mobile-first layout
 css/styles.css        All styling, print styles included
 js/app.js             All logic: groups, balances, settlements, UPI, export
+js/firebase-config.js Firebase web config — placeholders until the
+                      owner fills in a real project (see README)
+js/live-sync.js       Optional live sync (Firebase/Firestore);
+                      inert unless a real config is present
 manifest.webmanifest  PWA manifest (installable)
 sw.js                 Offline cache (best-effort)
 icons/                192/512 PNG + SVG app icons
@@ -130,5 +255,13 @@ test/test.js          Balance + settlement + UPI checks (node)
 
 ## Privacy
 
-All data stays on the device in `localStorage`. There is no server,
-no analytics and no account. Clearing browser data deletes groups.
+By default all data stays on the device in `localStorage`. There
+is no server, no analytics and no account. Clearing browser data
+deletes groups.
+
+If the owner switches on live sync (see above), live groups are
+also stored in the owner's own Firebase project (Firestore),
+under the group's 6-letter code, with anonymous sign-in only —
+ChipIn itself collects no names, emails or passwords. Anyone who
+knows a group's code can read that group, so share codes only
+inside the group.

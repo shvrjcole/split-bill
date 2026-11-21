@@ -169,6 +169,7 @@ function ensureGroupShape(g) {
   if (!Array.isArray(g.members)) g.members = [];
   if (!Array.isArray(g.expenses)) g.expenses = [];
   if (typeof g.currentUserId === 'undefined') g.currentUserId = null;
+  if (typeof g.liveCode === 'undefined') g.liveCode = null; /* null = offline group; a 6-letter code = live group (see js/live-sync.js) */
   return g;
 }
 function loadState() {
@@ -183,6 +184,16 @@ function loadState() {
 }
 function saveState() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) { /* storage full / private mode */ }
+  /* Optional live sync (js/live-sync.js): push the active group to
+     Firestore if this group is live. Guarded and best-effort — the
+     local save above has already happened, and with no Firebase
+     config this is a complete no-op. Suppressed while a remote
+     update is being applied, so we never echo it straight back. */
+  try {
+    if (typeof window !== 'undefined' && window.ChipInLiveSync && !window.__chipinApplyingRemote) {
+      window.ChipInLiveSync.pushIfLive();
+    }
+  } catch (e) { /* live sync must never break the offline app */ }
 }
 var state = (typeof localStorage !== 'undefined') ? loadState() : { groups: [], activeGroupId: null };
 function activeGroup() {
@@ -266,7 +277,8 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     }
     $('groupMeta').textContent = group.members.length + ' member' + (group.members.length === 1 ? '' : 's') +
       ' · ' + group.expenses.length + ' expense' + (group.expenses.length === 1 ? '' : 's') +
-      ' · ' + (group.activity || []).length + ' activity update' + ((group.activity || []).length === 1 ? '' : 's');
+      ' · ' + (group.activity || []).length + ' activity update' + ((group.activity || []).length === 1 ? '' : 's') +
+      (group.liveCode ? ' · Live: ' + group.liveCode : '');
 
     // "You are:" selector — stored per group, so activity is attributed.
     var who = $('currentUserSelect');
@@ -403,6 +415,44 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     document.querySelectorAll('.tab').forEach(function (b) { b.classList.toggle('active', b.dataset.tab === name); });
     document.querySelectorAll('.tab-panel').forEach(function (p) { p.hidden = p.id !== 'tab-' + name; });
   }
+
+  /* Apply a group received over live sync: replace the local copy
+     (or add it, if this device has never seen the group), keep this
+     device's own "You are" choice, save locally without echoing the
+     update back to Firestore, and re-render. Called only by
+     js/live-sync.js, only when a Firebase config is present. */
+  function applyRemoteGroup(remoteGroup) {
+    if (!remoteGroup || typeof remoteGroup.id !== 'string') return false;
+    ensureGroupShape(remoteGroup);
+    var local = state.groups.find(function (x) { return x.id === remoteGroup.id; });
+    var keepUser = local ? local.currentUserId : remoteGroup.currentUserId;
+    var keepLive = local ? local.liveCode : remoteGroup.liveCode;
+    if (local) {
+      state.groups[state.groups.indexOf(local)] = remoteGroup;
+    } else {
+      state.groups.push(remoteGroup);
+      state.activeGroupId = remoteGroup.id;
+    }
+    var g = state.groups.find(function (x) { return x.id === remoteGroup.id; });
+    if (keepUser) g.currentUserId = keepUser;
+    if (keepLive) g.liveCode = keepLive;
+    window.__chipinApplyingRemote = true;
+    try { saveState(); } finally { window.__chipinApplyingRemote = false; }
+    render();
+    return true;
+  }
+
+  /* Bridge for the optional live-sync module (js/live-sync.js).
+     It only uses these hooks when a Firebase config is present;
+     with no config, nothing here is ever called. */
+  window.ChipInApp = {
+    activeGroup: activeGroup,
+    saveState: saveState,
+    render: render,
+    toast: toast,
+    ensureGroupShape: ensureGroupShape,
+    applyRemoteGroup: applyRemoteGroup
+  };
 
   function createGroup(name) {
     var g = { id: uid(), name: name, createdAt: todayISO(), members: [], expenses: [], activity: [], payments: [], currentUserId: null };
@@ -694,6 +744,13 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     // PWA service worker (best-effort; app works fully without it)
     if ('serviceWorker' in navigator && window.location.protocol.indexOf('http') === 0) {
       navigator.serviceWorker.register('sw.js').catch(function () { /* offline support is optional */ });
+    }
+
+    // Optional live sync (js/live-sync.js): wires the Live sync card
+    // in the Activity tab. No-op when Firebase is not configured —
+    // the app then runs exactly as before, offline.
+    if (window.ChipInLiveSync && typeof window.ChipInLiveSync.init === 'function') {
+      window.ChipInLiveSync.init();
     }
 
     render();
